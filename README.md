@@ -1,6 +1,6 @@
 # 🔐 acme-panel — 宝塔面板 SSL 证书自动管理面板
 
-<p align="center">**[English](README.en.md) | 中文**</p>
+<p align="center"><strong><a href="README.en.md">English</a></strong> | 中文</p>
 
 基于 `acme.sh` 的 SSL 证书管理 Web 面板，专为**宝塔面板**环境设计：申请、续签、部署全部自动完成，且**不破坏宝塔对证书的管理权**——部署使用宝塔原生格式（`#SSL-START ... #SSL-END#` 标记块 + 标准证书目录），宝塔面板里依然可以正常查看、续签、关闭 SSL。
 
