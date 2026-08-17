@@ -90,7 +90,7 @@ acme-panel/
 - 面板**默认无鉴权**，请勿直接暴露到公网。建议：
   - 只监听内网（服务文件 `Environment=PORT` 不变，通过防火墙限制访问来源）
   - 或使用宝塔「反向代理」+ 面板登录鉴权前置
-- `dns-config.json`（DNS API 密钥）**不要提交到仓库**，已加入 `.gitignore`
+- DNS API 密钥仅保存在服务器本地的 `dns-config.json`（已被 `.gitignore` 排除，不会进入代码仓库），请勿将服务器上的该文件外传
 
 ## 🔄 与宝塔面板的兼容性
 
@@ -200,7 +200,7 @@ acme-panel/
 - The panel has **no built-in authentication**. Do NOT expose it directly to the public internet. Recommended:
   - Listen on the intranet only (keep `PORT` in the service file, restrict access via firewall)
   - Or put it behind a BaoTa "Reverse Proxy" with panel login authentication
-- `dns-config.json` (DNS API keys) must **not** be committed — it is already in `.gitignore`
+- DNS API keys are stored only in `dns-config.json` on the server (excluded via `.gitignore`, never enters the repo); don't share that file
 
 ## 🔄 BaoTa Compatibility
 
