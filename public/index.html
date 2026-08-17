@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>SSL 证书管理</title>
+<style>
+:root{--bg:#0f1117;--card:#1a1d27;--border:#2a2d3a;--text:#e4e6eb;--text2:#9ca3af;--accent:#6366f1;--green:#10b981;--red:#ef4444;--yellow:#f59e0b;--radius:10px;--font:-apple-system,BlinkMacSystemFont,'Inter',sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+h1{font-size:1.3rem;font-weight:700;margin-bottom:20px}
+.container{max-width:1000px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card h2{font-size:1rem;font-weight:600;margin-bottom:14px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:700px){.grid-2{grid-template-columns:1fr}}
+.form-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center}
+input,select{flex:1;min-width:120px;padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.88rem;font-family:var(--font);outline:none}
+input:focus,select:focus{border-color:var(--accent)}
+.btn{padding:8px 16px;border:none;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:var(--font);transition:opacity .2s;white-space:nowrap}
+.btn:hover{opacity:.85}
+.btn-accent{background:var(--accent);color:#fff}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:4px 10px;font-size:.72rem}
+table{width:100%;border-collapse:collapse;font-size:.82rem}
+th{text-align:left;padding:10px 8px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border)}
+td{padding:9px 8px;border-bottom:1px solid var(--border)}
+.badge{padding:3px 8px;border-radius:12px;font-size:.7rem;font-weight:600}
+.badge-ok{background:#064e3b;color:#6ee7b7}
+.badge-warn{background:#4a3500;color:#fbbf24}
+.badge-err{background:#4c0519;color:#fda4af}
+.toast{position:fixed;top:16px;right:16px;background:var(--green);color:#fff;padding:10px 18px;border-radius:8px;font-weight:600;font-size:.85rem;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}.toast.err{background:var(--red)}
+.log-box{background:var(--bg);border-radius:8px;padding:12px;font-family:'SF Mono',monospace;font-size:.76rem;max-height:200px;overflow-y:auto;white-space:pre-wrap;color:var(--text2);margin-top:10px}
+.tab-row{display:flex;gap:4px;margin-bottom:14px}
+.tab{padding:6px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text2);font-size:.8rem;cursor:pointer;font-family:var(--font)}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🔐 SSL 证书管理面板</h1>
+
+<div class="card">
+  <h2>⚙️ DNS API 密钥</h2>
+  <div id="dnsConfigList" style="margin-bottom:12px">加载中...</div>
+  <div class="form-row">
+    <select id="dnsProvider" onchange="showDnsForm()"><option value="">添加服务商...</option></select>
+  </div>
+  <div id="dnsFormFields" class="hidden">
+    <div class="form-row" id="dnsFields"></div>
+    <button class="btn btn-accent" onclick="saveDnsConfig()">保存密钥</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>🚀 申请证书</h2>
+  <div class="form-row">
+    <div class="tab-row" id="authTabs">
+      <button class="tab active" data-auth="dns" onclick="switchAuth('dns')">DNS 验证</button>
+      <button class="tab" data-auth="webroot" onclick="switchAuth('webroot')">Webroot</button>
+    </div>
+  </div>
+  <div class="form-row">
+    <input type="text" id="domain" placeholder="域名（多个用逗号分隔，将合并为一张证书）">
+    <select id="siteSelect"><option value="">选择站点...</option></select>
+  </div>
+  <div id="sanHint" class="hidden" style="margin-bottom:10px;font-size:.78rem;color:var(--yellow)">📎 检测到多个域名，将合并申请为一张证书（SAN），覆盖全部域名</div>
+  <div id="dnsOptions" class="form-row">
+    <select id="dnsSelect"><option value="">选择 DNS 服务商...</option></select>
+  </div>
+  <div id="webrootOptions" class="form-row hidden">
+    <input type="text" id="webroot" placeholder="站点根目录">
+  </div>
+  <div class="form-row">
+    <label style="display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--text2);cursor:pointer;white-space:nowrap">
+      <input type="checkbox" id="forceHttps" checked style="width:auto;min-width:0"> 强制 HTTPS（HTTP 301 跳转）
+    </label>
+    <button class="btn btn-accent" onclick="autoSSL()">申请并部署</button>
+    <button class="btn btn-sm" onclick="autoSSL(true)" style="background:var(--border);color:var(--text2)">Staging 测试</button>
+  </div>
+  <div id="autoLog" class="log-box" style="display:none"></div>
+</div>
+
+<div class="card">
+  <h2>🤖 全托管</h2>
+  <div id="detectStatus" style="margin-bottom:10px"><span style="color:var(--text2)">点击检测缺失 SSL 的域名</span></div>
+  <div class="form-row">
+    <button class="btn btn-accent" onclick="runDetect()">🔍 扫描</button>
+    <button class="btn btn-green" id="btnApplyAll" onclick="applyAll()" style="display:none">🚀 一键全自动申请</button>
+  </div>
+  <div id="detectResults" style="margin-top:10px;max-height:200px;overflow-y:auto"></div>
+  <div id="detectLog" class="log-box" style="display:none"></div>
+</div>
+
+<div class="card">
+  <h2>🔄 自动续期</h2>
+  <div id="renewStatus" style="margin-bottom:10px">加载中...</div>
+  <div class="form-row">
+    <input type="text" id="cronSchedule" placeholder="0 3 * * * (每天凌晨3点)">
+    <button class="btn btn-green" onclick="setupAR(true)">开启</button>
+    <button class="btn btn-red btn-sm" onclick="setupAR(false)">关闭</button>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h2>📜 证书</h2>
+    <button class="btn btn-sm" style="margin-bottom:10px" onclick="loadCerts()">刷新</button>
+    <button class="btn btn-green btn-sm" style="margin-bottom:10px;margin-left:6px" onclick="renewAll()">续签全部</button>
+    <button class="btn btn-red btn-sm" style="margin-bottom:10px;margin-left:6px" onclick="doCleanup()">🧹 清理</button>
+    <div id="certList">加载中...</div>
+  </div>
+  <div class="card">
+    <h2>🌐 站点</h2>
+    <button class="btn btn-sm" style="margin-bottom:10px" onclick="loadSites()">刷新</button>
+    <div id="siteList">加载中...</div>
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+let authMode='dns';
+
+function toast(m,e){const t=$('#toast');t.textContent=m;t.className='toast'+(e?' err':'')+' show';setTimeout(()=>t.classList.remove('show'),3000)}
+async function api(p,o={}){const r=await fetch(p,{headers:{'Content-Type':'application/json'},...o,body:o.body?JSON.stringify(o.body):undefined});return r.json()}
+
+function switchAuth(m){authMode=m;$$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.auth===m));$('#dnsOptions').classList.toggle('hidden',m!=='dns');$('#webrootOptions').classList.toggle('hidden',m!=='webroot')}
+
+async function loadDnsConfig(){
+  const cfg=await api('/api/dns-config'),provs=await api('/api/dns-providers');
+  let h='';for(const[k]of Object.entries(cfg)){const p=provs[k]||{name:k};h+=`<span style="display:inline-flex;align-items:center;gap:8px;margin:4px 8px 4px 0;background:var(--bg);border-radius:8px;padding:6px 12px">🔑 ${p.name} <button class="btn btn-red btn-sm" onclick="delDns('${k}')">×</button></span>`}
+  if(!h)h='<span style="color:var(--text2)">未配置 DNS 密钥 — 仅能用 Webroot 方式申请</span>';
+  $('#dnsConfigList').innerHTML=h;
+  $('#dnsProvider').innerHTML='<option value="">添加服务商...</option>'+Object.entries(provs).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+  $('#dnsSelect').innerHTML='<option value="">选择 DNS 服务商...</option>'+Object.entries(provs).filter(([k])=>cfg[k]).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('');
+}
+
+function showDnsForm(){const p=$('#dnsProvider').value;if(!p)return;api('/api/dns-providers').then(provs=>{const dp=provs[p];$('#dnsFormFields').classList.remove('hidden');$('#dnsFields').innerHTML=dp.env.split(',').map(k=>`<input type="${k.includes('Key')||k.includes('Token')?'password':'text'}" id="dns_${k}" placeholder="${k}">`).join('')})}
+async function saveDnsConfig(){const p=$('#dnsProvider').value;if(!p)return;const provs=await api('/api/dns-providers'),dp=provs[p],cred={};dp.env.split(',').forEach(k=>{const v=$('#dns_'+k).value;cred[k]=v});const r=await api('/api/dns-config',{method:'POST',body:{provider:p,credentials:cred}});if(r.ok){toast('已保存');loadDnsConfig();$('#dnsFormFields').classList.add('hidden')}else toast(r.error,true)}
+async function delDns(p){if(!confirm('删除 '+p+' 的密钥？'))return;await api('/api/dns-config/'+p,{method:'DELETE'});toast('已删除');loadDnsConfig()}
+
+let certCache = [];
+async function loadCerts(){try{const c=await api('/api/certs');certCache=c;if(!c.length){$('#certList').innerHTML='<span style="color:var(--text2)">暂无证书</span>';return}$('#certList').innerHTML=`<table><tr><th>域名</th><th>剩余</th><th>操作</th></tr>${c.map(x=>`<tr><td>${x.domain}${(x.sanDomains&&x.sanDomains.length)?'<br><span style="font-size:.65rem;color:var(--text2)">+ '+x.sanDomains.join(' ')+'</span>':''}</td><td><span class="badge ${x.remainingDays>7?'badge-ok':x.remainingDays>0?'badge-warn':'badge-err'}">${x.remainingDays}天</span></td><td><button class="btn btn-green btn-sm" onclick="renewOne('${x.domain}')">续签</button><button class="btn btn-sm" style="background:var(--border);color:var(--text2);margin-left:4px" onclick="deployCert('${x.domain}','${x.certPath}','${x.keyPath}')">部署</button><button class="btn btn-red btn-sm" style="margin-left:4px" onclick="deleteCert('${x.domain}')">删除</button></td></tr>`).join('')}</table>`}catch(e){toast(e.message,true)}}
+
+async function loadSites(){try{const s=await api('/api/sites');if(!s.length){$('#siteList').innerHTML='<span style="color:var(--text2)">无站点</span>';return}$('#siteList').innerHTML=`<table><tr><th>域名</th><th>SSL</th><th>根目录</th></tr>${s.map(x=>`<tr><td>${x.name}</td><td><span class="badge ${x.hasSSL?'badge-ok':'badge-none'}">${x.hasSSL?'🔒 已启用':'未启用'}</span></td><td><code style="font-size:.72rem;color:var(--text2)">${x.webroot||'-'}</code></td></tr>`).join('')}</table>`;$('#siteSelect').innerHTML='<option value="">选择站点...</option>'+s.map(x=>`<option value="${x.configFile}" data-webroot="${x.webroot||''}">${x.name} ${x.webroot?' ['+x.webroot+']':''}</option>`).join('')}catch(e){toast(e.message,true)}}
+
+async function autoSSL(test){const raw=$('#domain').value.trim();const domains=raw.split(/[,\s]+/).filter(Boolean);const siteName=$('#siteSelect').value;if(!domains.length||!siteName)return toast('请填写域名并选择站点',true);const log=$('#autoLog');log.style.display='block';log.textContent='⏳ 申请中...\n';toast('正在申请...');
+const body={domains,siteName,keylength:'ec-256',forceHttps:$('#forceHttps').checked};
+if(authMode==='dns'){const d=$('#dnsSelect').value;if(!d)return toast('请选择 DNS 服务商',true);body.dns=d}else{body.webroot=$('#webroot').value.trim()||$('#siteSelect').selectedOptions[0]?.dataset.webroot||'';if(!body.webroot)return toast('请填写站点根目录',true)}
+try{const ep=test?'/api/issue-test':'/api/auto-ssl';const r=await api(ep,{method:'POST',body});if(r.ok){log.textContent+='✅ 申请成功（'+(r.issue.domains||[r.issue.domain]).join(', ')+'）\n✅ 已部署 Nginx（'+(r.deploy.forceHttps?'含强制HTTPS跳转':'未强制跳转')+'）\n';toast('完成！');loadCerts();loadSites()}else{log.textContent+='❌ '+(r.error||'失败')+'\n';toast(r.error||'失败',true)}}catch(e){log.textContent+='❌ '+e.message+'\n';toast(e.message,true)}}
+
+async function deleteCert(d){const c=certCache.find(x=>x.domain===d);const san=(c?.sanDomains||[]).join(', ');
+if(!confirm(`删除证书 ${d}${san?'（含 '+san+'）':''}？\n\n将删除 acme.sh 与宝塔证书目录中的证书文件。\n若站点仍引用该证书，会提示并要求确认关闭站点 SSL。`))return;
+const del=async force=>api('/api/certs/'+encodeURIComponent(d),{method:'DELETE',body:force?{force:true}:{}});
+try{
+  const r=await del(false);
+  if(r.ok){toast('已删除证书');loadCerts();loadSites();return}
+  if(r.blockedBy&&r.blockedBy.length){
+    if(confirm(`证书仍被站点引用：${r.blockedBy.join(', ')}\n\n强制删除将关闭这些站点的 SSL（回退为 HTTP 访问），宝塔面板同步显示未开启。\n继续？`)){
+      const r2=await del(true);
+      if(r2.ok){toast('已删除证书，站点 SSL 已关闭');loadCerts();loadSites()}else toast(r2.error||'删除失败',true)
+    }
+    return;
+  }
+  toast(r.error||'删除失败',true)
+}catch(e){toast(e.message,true)}}
+
+async function updateSanHint(){const n=$('#domain').value.trim().split(/[,\s]+/).filter(Boolean).length;$('#sanHint').classList.toggle('hidden',n<2)}
+
+async function renewAll(){if(!confirm('续签所有证书？'))return;toast('续签中...');try{await api('/api/renew',{method:'POST',body:{}});toast('完成');loadCerts()}catch(e){toast(e.message,true)}}
+async function renewOne(d){toast('续签 '+d+'...');try{await api('/api/renew',{method:'POST',body:{domain:d}});toast(d+' 续签完成');loadCerts()}catch(e){toast(e.message,true)}}
+async function deployCert(domain,cp,kp){const s=prompt(`部署 ${domain} 到哪个站点？`,domain);if(!s)return;try{await api('/api/deploy',{method:'POST',body:{domain,certPath:cp,keyPath:kp,siteName:s}});toast('已部署');loadSites()}catch(e){toast(e.message,true)}}
+
+async function loadRenewStatus(){try{const r=await api('/api/auto-renew-status');$('#renewStatus').innerHTML=`<span class="badge ${r.enabled?'badge-ok':'badge-none'}">${r.enabled?'✅ 已开启':'⏸ 未开启'}</span> <code style="font-size:.72rem;color:var(--text2)">${r.crontab||'无'}</code>`}catch(e){$('#renewStatus').textContent='加载失败'}}
+async function setupAR(enable){const sch=$('#cronSchedule').value.trim()||'0 3 * * *';try{const r=await api('/api/auto-renew',{method:'POST',body:{enable,schedule:sch}});toast(r.enabled?'自动续期已开启':'自动续期已关闭');loadRenewStatus()}catch(e){toast(e.message,true)}}
+
+async function doCleanup(){if(!confirm('将扫描宝塔证书目录和acme.sh，清除无站点/已吊销的证书。\n\n⚠️ 此操作不可撤销，确定继续？'))return;toast('扫描中...');
+try{const r=await api('/api/cleanup',{method:'POST',body:{dryRun:false}});const m=r.cleaned.map(x=>`🗑 ${x.path} (${x.reason})`).join('\n');toast(`已清理 ${r.count} 个证书`);alert(`清理完成: ${r.count} 个\n\n${m||'无需清理'}`);loadCerts();runDetect()}catch(e){toast(e.message,true)}}
+
+async function runDetect(){const s=$('#detectStatus');s.innerHTML='⏳ 扫描中...';$('#detectResults').innerHTML='';
+try{const r=await api('/api/auto-detect');
+s.innerHTML=`站点:${r.totalSites} | 已有证书:${r.totalCerts} | <span style="color:${r.needSSL?'var(--red)':'var(--green)'}">缺失SSL:${r.needSSL}</span> | ${r.done} 个已覆盖`;
+if(!r.hasDNS&&r.needSSL)s.innerHTML+='<br><span style="color:var(--yellow)">⚠️ 请先配置 DNS API 密钥</span>';
+if(r.needSSL>0&&r.hasDNS)$('#btnApplyAll').style.display='';
+else $('#btnApplyAll').style.display='none';
+let h='';
+if(r.list.done.length)h+=`<div style="margin-bottom:8px;font-size:.8rem;color:var(--green)">✅ 已覆盖 ${r.list.done.length} 个域名</div>`;
+if(r.list.needSSL.length)h+=`<div style="margin-bottom:8px;font-size:.8rem;color:var(--red)">❌ 需申请 ${r.list.needSSL.length} 个：</div>`+r.list.needSSL.map(x=>`<div style="margin:2px 0;padding:6px 10px;background:var(--bg);border-radius:6px;font-size:.78rem">🔴 ${x.domain} → ${x.site} ${x.needsDNS?'(需DNS)':'(webroot:'+x.webroot+')'}</div>`).join('');
+$('#detectResults').innerHTML=h}catch(e){s.innerHTML='<span style="color:var(--red)">检测失败: '+e.message+'</span>'}}
+
+async function applyAll(){if(!confirm('确认自动申请所有缺失 SSL 的域名？此操作可能持续数分钟'))return;
+const log=$('#detectLog');log.style.display='block';log.textContent='⏳ 开始批量申请...\n';$('#btnApplyAll').disabled=true;
+try{const r=await api('/api/auto-apply-all',{method:'POST'});
+log.textContent+=`完成: ${r.ok}/${r.total} 成功\n`;
+r.results.forEach(x=>{log.textContent+=`  ${x.status==='ok'?'✅':'❌'} ${(x.domains||[]).join(', ')}${x.error?' — '+x.error:''}\n`});
+toast(`${r.ok} 个站点 SSL 已部署`);loadCerts();loadSites();runDetect()}catch(e){log.textContent+='❌ '+e.message;toast(e.message,true)}
+$('#btnApplyAll').disabled=false}
+
+(async()=>{await api('/api/init');loadDnsConfig();loadCerts();loadSites();loadRenewStatus();switchAuth('dns');runDetect();$('#domain').addEventListener('input',updateSanHint)})();
+</script>
+</body>
+</html>

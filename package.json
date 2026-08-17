@@ -1,0 +1,16 @@
+{
+  "name": "acme-panel",
+  "version": "1.0.0",
+  "description": "SSL证书自动管理面板 — Let's Encrypt 申请/续签/自动部署Nginx",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0"
+  },
+  "devDependencies": {
+    "ssh2": "^1.17.0"
+  }
+}

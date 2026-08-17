@@ -1,0 +1,18 @@
+[Unit]
+Description=SSL 证书自动管理面板（宝塔环境）
+After=network.target nginx.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/acme-panel
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=16789
+StandardOutput=append:/var/log/acme-panel.log
+StandardError=append:/var/log/acme-panel.log
+
+[Install]
+WantedBy=multi-user.target

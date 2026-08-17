@@ -1,0 +1,15 @@
+# 依赖
+node_modules/
+
+# 运行时生成的敏感配置（DNS API 密钥）
+dns-config.json
+
+# 环境变量
+.env
+
+# 日志
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
