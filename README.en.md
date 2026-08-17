@@ -1,4 +1,4 @@
-**English** | [中文](README.md)
+<p align="center">**English** | [中文](README.md)</p>
 
 ---
 
@@ -9,11 +9,13 @@ A web panel built on `acme.sh` for managing SSL certificates on **BaoTa (aaPanel
 ## ✨ Features
 
 - **One-click issue & deploy**: DNS / Webroot validation, auto-deploys to the site and reloads Nginx
+- **Bilingual UI**: switch between Chinese and English with one click (Chinese by default, preference remembered)
 - **Multi-domain combined (SAN) certificates**: enter multiple domains (comma-separated) to issue a single combined certificate — re-issue after adding new domains to a site
 - **Force HTTPS**: HTTP → HTTPS (301) redirect enabled by default on deploy (BaoTa-style `#HTTP_TO_HTTPS_START#` block), can be turned off
 - **Fully-managed mode**: scans all BaoTa sites, detects domains missing SSL, batch-issues with one click
 - **Auto renewal**: built-in crontab (default daily 3 AM), customizable schedule
-- **Certificate management**: view days remaining (parsed from real `notAfter` via openssl — consistent with BaoTa panel), manual renew, redeploy to another site, **delete certificates** (including valid ones; prompts and falls back site SSL to HTTP if still referenced)
+- **Certificate management**: view days remaining (parsed from real `notAfter` via openssl — consistent with BaoTa panel), manual renew, redeploy to another site
+- **Delete certificates**: delete certificates including valid ones; if still referenced by a site, it prompts and falls that site's SSL back to HTTP automatically
 - **Cleanup**: remove certificates with no site or revoked (SAN-aware — never deletes combined certificates still in use)
 
 ## 🧩 Supported DNS Providers
